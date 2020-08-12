@@ -106,6 +106,10 @@ class FramePlayer(object):
             proc = subprocess.run(['mpv', '--fullscreen', path])
             if proc.returncode is not 0:
                 logger.warning('Failed to play movie: {}'.format(path))
+        elif self.video_player == 'omxplayer':
+            proc = subprocess.run(['omxplayer', path])
+            if proc.returncode is not 0:
+                logger.warning('Failed to play movie with omxplayer: {}'.format(path))
 
     def show_image(self, path, image_duration):
         if self.image_viewer == 'feh':
@@ -133,3 +137,4 @@ if __name__ == '__main__':
     logger.info('Jacob Picture Frame started.')
     player = FramePlayer(album_folder = pathlib.Path(os.getenv('HOME'), 'Album'))
     player.run_and_block()
+    q
