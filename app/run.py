@@ -5,6 +5,7 @@ import pathlib
 import enum
 import logging
 import shutil
+import random
 
 logging.basicConfig(format='%(asctime)s %(name)s [%(levelname)s]: %(message)s')
 logger = logging.getLogger('JPFrame')
