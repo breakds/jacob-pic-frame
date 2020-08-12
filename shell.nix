@@ -18,5 +18,5 @@ let
   pkgs = mach-nix.nixpkgs.pkgs;
 in pkgs.mkShell {
   name = "jacob";
-  buildInputs = with pkgs; [ customizedPython feh ];
+  buildInputs = with pkgs; [ customizedPython feh mpv ];
 }
