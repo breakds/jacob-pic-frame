@@ -29,7 +29,7 @@ class FramePlayerConfig(object):
         self.media_format = MediaFormat.BOTH
         # The duration that each image gets displayed before the player switches
         # to the next media.
-        self.image_duration = 3.0
+        self.image_duration = 5.0
 
     def allow_image(self):
         return self.media_format != MediaFormat.IMG_ONLY
@@ -114,11 +114,15 @@ class FramePlayer(object):
 
     def show_image(self, path, image_duration):
         if self.image_viewer == 'feh':
-            with subprocess.Popen(['feh', '-ZF', path]) as proc:
+            with subprocess.Popen(['feh', '-ZF', '--auto-rotate', path]) as proc:
                 time.sleep(image_duration)
                 proc.terminate()
 
     def run_and_block(self):
+        # TODO(breakds): Find a better solution for the transition
+        # problem, e.g. double buffer.
+        blank_bg_path = pathlib.Path(os.getenv('HOME'), '.jpframe', 'blank.jpg')
+        background_proc = subprocess.Popen(['feh', '-ZF', blank_bg_path])
         while True:
             # TODO(breakds): Process album change and config update here.
             if len(self.album) == 0:
@@ -132,10 +136,10 @@ class FramePlayer(object):
             else:
                 step = random.randrange(1, len(self.album))
             self.current_index = (self.current_index + step) % len(self.album)
+        background_proc.terminate()
 
 
 if __name__ == '__main__':
     logger.info('Jacob Picture Frame started.')
     player = FramePlayer(album_folder = pathlib.Path(os.getenv('HOME'), 'Album'))
     player.run_and_block()
-    q
