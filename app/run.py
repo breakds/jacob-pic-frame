@@ -7,6 +7,9 @@ import logging
 import shutil
 import random
 
+# TODO(breakds): Embed a web service in it.
+# Following https://paste.readthedocs.io/en/latest/do-it-yourself-framework.html
+
 logging.basicConfig(format='%(asctime)s %(name)s [%(levelname)s]: %(message)s')
 logger = logging.getLogger('JPFrame')
 logger.setLevel(logging.INFO)
