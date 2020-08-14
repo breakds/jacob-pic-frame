@@ -28,11 +28,11 @@ class MediaFormat(enum.Enum):
 
 class FramePlayerConfig(object):
     def __init__(self):
-        self.loop_type = LoopType.RANDOM
+        self.loop_type = LoopType.ORDERED
         self.media_format = MediaFormat.BOTH
         # The duration that each image gets displayed before the player switches
         # to the next media.
-        self.image_duration = 5.0
+        self.image_duration = 10.0
 
     def allow_image(self):
         return self.media_format != MediaFormat.IMG_ONLY
