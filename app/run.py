@@ -117,7 +117,9 @@ class FramePlayer(object):
 
     def show_image(self, path, image_duration):
         if self.image_viewer == 'feh':
-            with subprocess.Popen(['feh', '-ZF', '--auto-rotate', path]) as proc:
+            with subprocess.Popen([
+                    'feh', '-ZF', '--auto-rotate', '--hide-pointer',
+                    path]) as proc:
                 time.sleep(image_duration)
                 proc.terminate()
 
@@ -125,7 +127,7 @@ class FramePlayer(object):
         # TODO(breakds): Find a better solution for the transition
         # problem, e.g. double buffer.
         blank_bg_path = pathlib.Path(os.getenv('HOME'), '.jpframe', 'blank.jpg')
-        background_proc = subprocess.Popen(['feh', '-ZF', blank_bg_path])
+        background_proc = subprocess.Popen(['feh', '-ZF', '--hide-pointer', blank_bg_path])
         while True:
             # TODO(breakds): Process album change and config update here.
             if len(self.album) == 0:
