@@ -6,6 +6,9 @@ import enum
 import logging
 import shutil
 import random
+import threading
+
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # TODO(breakds): Embed a web service in it.
 # Following https://paste.readthedocs.io/en/latest/do-it-yourself-framework.html
@@ -69,8 +72,12 @@ class Utility(object):
                 for f in os.listdir(album_folder)]
 
 
-class FramePlayer(object):
+class FramePlayer(threading.Thread):
     def __init__(self, config = None, album_folder = None):
+        # The FramePlayer runs a daemon thread so that when the signal
+        # is received to kill the program, the program can gracefully
+        # exit without waiting for this thread.
+        threading.Thread.__init__(self, daemon = True)
         self.config = config if config is not None else FramePlayerConfig()
         # TODO(breakds): Find a better solution to find a default
         # album if album_folder is None
@@ -123,28 +130,116 @@ class FramePlayer(object):
                 time.sleep(image_duration)
                 proc.terminate()
 
-    def run_and_block(self):
+    def run(self):
         # TODO(breakds): Find a better solution for the transition
         # problem, e.g. double buffer.
         blank_bg_path = pathlib.Path(os.getenv('HOME'), '.jpframe', 'blank.jpg')
         background_proc = subprocess.Popen(['feh', '-ZF', '--hide-pointer', blank_bg_path])
         while True:
-            # TODO(breakds): Process album change and config update here.
-            if len(self.album) == 0:
-                time.sleep(1.0)
-                continue
+            print('ok')
+            time.sleep(1.0)
+            # # TODO(breakds): Process album change and config update here.
+            # if len(self.album) == 0:
+            #     time.sleep(1.0)
+            #     continue
 
-            self.play_single_media(self.album[self.current_index])
+            # self.play_single_media(self.album[self.current_index])
 
-            if self.config.loop_type is LoopType.ORDERED:
-                step = 1
-            else:
-                step = random.randrange(1, len(self.album))
-            self.current_index = (self.current_index + step) % len(self.album)
+            # if self.config.loop_type is LoopType.ORDERED:
+            #     step = 1
+            # else:
+            #     step = random.randrange(1, len(self.album))
+            # self.current_index = (self.current_index + step) % len(self.album)
         background_proc.terminate()
 
+
+CONFIG_PORTAL_WEBAPP = """
+<html>
+  <head>
+    <title>Jacob Picture Frame Config Portal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"
+            integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <script>
+      $(document).ready(function() {
+          $('.ui.dropdown').dropdown();
+          $('.ui.radio.checkbox').checkbox();
+          $('.ui.checkbox').checkbox();
+
+          var app = new Vue({
+            el: '#app',
+            data: {
+              enableVideo: false,
+              duration: 3,
+            }
+          });
+      });
+
+    </script>
+    <style>
+      body { max-width: 400px; margin: auto; padding: 20px; }
+    </style>
+  </head>
+  <body>
+    <div class="ui container root-component" id="app">
+      <form class="ui form">
+
+        <div class="inline field">
+          <div class="ui toggle checkbox">
+            <input type="checkbox" tabindex="0" class="hidden" v-bind:checked="enableVideo">
+            <label>
+              Enable Video
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Display Duration</label>
+          <select class="ui search dropdown" v-model="duration">
+            <option value="1">1 sec</option>
+            <option value="2">2 sec</option>
+            <option value="3">3 sec</option>
+            <option value="4">4 sec</option>
+          </select>
+        </div>
+
+        <div class="grouped fields">
+          <label for="looptype">Loop Type</label>
+          <div class="field">
+            <div class="ui radio checkbox">
+              <input type="radio" name="looptype" checked="" tabindex="0" class="hidden">
+            <label>Ordered</label>
+          </div>
+          <div class="field">
+            <div class="ui radio checkbox">
+              <input type="radio" name="looptype" checked="" tabindex="0" class="hidden">
+            <label>Random</label>
+          </div>
+        </div>
+
+        <button class="ui button primary" type="submit">Submit</button>
+      </form>
+
+    </div>
+  </body>
+</html>
+"""
+
+class ConfigProtal(BaseHTTPRequestHandler):
+    def do_GET(self):
+        logger.info('{}, {}'.format(self.path, self.headers))
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(CONFIG_PORTAL_WEBAPP.encode('utf-8'))
 
 if __name__ == '__main__':
     logger.info('Jacob Picture Frame started.')
     player = FramePlayer(album_folder = pathlib.Path(os.getenv('HOME'), 'Album'))
-    player.run_and_block()
+    player.start()
+
+    with HTTPServer(('', 7500), ConfigProtal) as httpd:
+        httpd.serve_forever()
