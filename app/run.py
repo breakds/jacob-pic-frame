@@ -152,7 +152,8 @@ class FramePlayer(threading.Thread):
             # self.current_index = (self.current_index + step) % len(self.album)
         background_proc.terminate()
 
-
+        
+# TODO(breakds): Vue and JQuery can have conflit. Should use another CSS framework then.
 CONFIG_PORTAL_WEBAPP = """
 <html>
   <head>
@@ -162,7 +163,7 @@ CONFIG_PORTAL_WEBAPP = """
             integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
             crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
     <script>
       $(document).ready(function() {
           $('.ui.dropdown').dropdown();
@@ -171,9 +172,20 @@ CONFIG_PORTAL_WEBAPP = """
 
           var app = new Vue({
             el: '#app',
-            data: {
-              enableVideo: false,
-              duration: 3,
+            data() {
+              return {
+                paused: true,
+                enableVideo: false,
+                duration: 3,
+              };
+            },
+            methods: {
+              playOrPause() {
+                this.paused = !this.paused;
+              },
+              handleSubmit() {
+                console.log('submit');
+              }
             }
           });
       });
@@ -185,11 +197,20 @@ CONFIG_PORTAL_WEBAPP = """
   </head>
   <body>
     <div class="ui container root-component" id="app">
-      <form class="ui form">
+      <form class="ui form" @submit.prevent="handleSubmit">
 
         <div class="inline field">
           <div class="ui toggle checkbox">
-            <input type="checkbox" tabindex="0" class="hidden" v-bind:checked="enableVideo">
+            <input type="checkbox" :checked="!paused"
+                   @change="$emit('input', $event.target.checked)"/>
+            <label>Pause</label>
+          </div>
+        </div>
+
+        <div class="inline field">
+          <div class="ui toggle checkbox">
+            <input type="checkbox" tabindex="0" class="hidden" 
+                   v-bind:checked="enableVideo" />
             <label>
               Enable Video
             </label>
@@ -220,7 +241,9 @@ CONFIG_PORTAL_WEBAPP = """
           </div>
         </div>
 
-        <button class="ui button primary" type="submit">Submit</button>
+        <button class="ui button primary">
+          Submit
+        </button>
       </form>
 
     </div>
