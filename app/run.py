@@ -7,7 +7,7 @@ import logging
 import shutil
 import random
 import threading
-
+import json
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # TODO(breakds): Embed a web service in it.
@@ -36,6 +36,8 @@ class FramePlayerConfig(object):
         # The duration that each image gets displayed before the player switches
         # to the next media.
         self.image_duration = 10.0
+        # When set to true, the player will stop playing images or videos.
+        self.stopped = False
 
     def allow_image(self):
         return self.media_format != MediaFormat.IMG_ONLY
@@ -43,8 +45,20 @@ class FramePlayerConfig(object):
     def allow_movie(self):
         return self.media_format != MediaFormat.MOV_ONLY
 
+    def as_dict(self):
+        return {
+            'stopped': self.stopped,
+            'loopType': self.loop_type.name,
+            'mediaFormat': self.media_format.name,
+            'imageDuration': self.image_duration,
+        }
+            
+
 
 class Utility(object):
+    global_config_lock = threading.Lock()
+    global_config = FramePlayerConfig()
+    
     @staticmethod
     def check_program_installed(program):
         return program if shutil.which(program) else None
@@ -73,12 +87,12 @@ class Utility(object):
 
 
 class FramePlayer(threading.Thread):
-    def __init__(self, config = None, album_folder = None):
+    def __init__(self, album_folder = None):
         # The FramePlayer runs a daemon thread so that when the signal
         # is received to kill the program, the program can gracefully
         # exit without waiting for this thread.
         threading.Thread.__init__(self, daemon = True)
-        self.config = config if config is not None else FramePlayerConfig()
+        self.config = FramePlayerConfig()
         # TODO(breakds): Find a better solution to find a default
         # album if album_folder is None
         self.album = Utility.make_album(album_folder)
@@ -136,20 +150,30 @@ class FramePlayer(threading.Thread):
         blank_bg_path = pathlib.Path(os.getenv('HOME'), '.jpframe', 'blank.jpg')
         background_proc = subprocess.Popen(['feh', '-ZF', '--hide-pointer', blank_bg_path])
         while True:
-            print('ok')
-            time.sleep(1.0)
-            # # TODO(breakds): Process album change and config update here.
-            # if len(self.album) == 0:
-            #     time.sleep(1.0)
-            #     continue
+            # Check whether there are new config available. If so, set
+            # the config to the new config.
+            try:
+                locked = Utility.global_config_lock.acquire(blocking=False)
+                self.config = Utility.global_config
+            finally:
+                if locked:
+                    Utility.global_config_lock.release()
+            if self.config.stopped:
+                time.sleep(0.5)
+                continue
+            
+            # TODO(breakds): Process config update here.
+            if len(self.album) == 0:
+                time.sleep(1.0)
+                continue
 
-            # self.play_single_media(self.album[self.current_index])
+            self.play_single_media(self.album[self.current_index])
 
-            # if self.config.loop_type is LoopType.ORDERED:
-            #     step = 1
-            # else:
-            #     step = random.randrange(1, len(self.album))
-            # self.current_index = (self.current_index + step) % len(self.album)
+            if self.config.loop_type is LoopType.ORDERED:
+                step = 1
+            else:
+                step = random.randrange(1, len(self.album))
+            self.current_index = (self.current_index + step) % len(self.album)
         background_proc.terminate()
 
 
@@ -180,16 +204,15 @@ CONFIG_PORTAL_WEBAPP = """
           
           methods: {
             handleSwitchOnOff() {
-              this.isStopped = !this.isStopped;
               this.isSwitchBusy = true;
-              fetch(`${host}/haha`, {
+              fetch(`${host}/switch`, {
                 method: "POST",
                 body: JSON.stringify({"a": 1, "b": 2}),
               }).then(response => {
-                return response.text();
-              }).then(text => {
+                return response.json();
+              }).then(json => {
                 this.isSwitchBusy = false;
-                console.log(text);
+                this.isStopped = json.stopped;
               });
             }
           },
@@ -307,7 +330,7 @@ CONFIG_PORTAL_WEBAPP = """
 </html>
 """
 
-class ConfigProtal(BaseHTTPRequestHandler):
+class ConfigPortal(BaseHTTPRequestHandler):
     def do_GET(self):
         logger.info('{}, {}'.format(self.path, self.headers))
         self.send_response(200)
@@ -316,17 +339,25 @@ class ConfigProtal(BaseHTTPRequestHandler):
         self.wfile.write(CONFIG_PORTAL_WEBAPP.encode('utf-8'))
 
     def do_POST(self):
-        logger.info('{}, {}'.format(self.path, self.headers))
-        time.sleep(1.0)
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-        self.wfile.write('hehe'.encode('utf-8'))
+        if self.path == '/switch':
+            updated_config = None
+            with Utility.global_config_lock:
+                Utility.global_config.stopped = not Utility.global_config.stopped
+                updated_config = Utility.global_config.as_dict()
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(updated_config).encode('utf-8'))
+        else:
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write('Unrecognized Path {}'.format(self.path).encode('utf-8'))
 
 if __name__ == '__main__':
     logger.info('Jacob Picture Frame started.')
     player = FramePlayer(album_folder = pathlib.Path(os.getenv('HOME'), 'Album'))
     player.start()
 
-    with HTTPServer(('', 7500), ConfigProtal) as httpd:
+    with HTTPServer(('', 7500), ConfigPortal) as httpd:
         httpd.serve_forever()
