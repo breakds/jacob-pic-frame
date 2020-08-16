@@ -152,100 +152,119 @@ class FramePlayer(threading.Thread):
             # self.current_index = (self.current_index + step) % len(self.album)
         background_proc.terminate()
 
-        
-# TODO(breakds): Vue and JQuery can have conflit. Should use another CSS framework then.
+
 CONFIG_PORTAL_WEBAPP = """
+<!DOCTYPE html>
 <html>
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Jacob Picture Frame Config Portal</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
-    <script src="https://code.jquery.com/jquery-3.1.1.min.js"
-            integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
-            crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.0/css/bulma.min.css">
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
     <script>
-      $(document).ready(function() {
-          $('.ui.dropdown').dropdown();
-          $('.ui.radio.checkbox').checkbox();
-          $('.ui.checkbox').checkbox();
-
-          var app = new Vue({
-            el: '#app',
-            data() {
-              return {
-                paused: true,
-                enableVideo: false,
-                duration: 3,
-              };
-            },
-            methods: {
-              playOrPause() {
-                this.paused = !this.paused;
-              },
-              handleSubmit() {
-                console.log('submit');
-              }
-            }
-          });
-      });
-
     </script>
     <style>
-      body { max-width: 400px; margin: auto; padding: 20px; }
+      body { max-width: 800px; margin: auto; padding: 20px; }
     </style>
   </head>
   <body>
-    <div class="ui container root-component" id="app">
-      <form class="ui form" @submit.prevent="handleSubmit">
-
-        <div class="inline field">
-          <div class="ui toggle checkbox">
-            <input type="checkbox" :checked="!paused"
-                   @change="$emit('input', $event.target.checked)"/>
-            <label>Pause</label>
+    <div id="app" class="container is-fullhd">
+      <form>
+        
+        <div class="field is-horizontal">
+          <div class="field-label">
+            <label class="label">On/Off</label>
+          </div>
+          <div class="field-body">
+            <div class="field">
+              <div class="control">
+                <label class="radio"><input type="radio" name="question"> Play </label>
+                <label class="radio"><input type="radio" name="question"> Stop </label>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="inline field">
-          <div class="ui toggle checkbox">
-            <input type="checkbox" tabindex="0" class="hidden" 
-                   v-bind:checked="enableVideo" />
-            <label>
-              Enable Video
-            </label>
+        <div class="field is-horizontal">
+          <div class="field-label is-normal">
+            <label class="label">Display Time</label>
+          </div>
+          <div class="field-body">
+        <div class="field has-addons">
+          <p class="control">
+            <button class="button">
+              <span class="icon is-small">
+                <i class="fas fa-bold"></i>
+              </span>
+            </button>
+          </p>
+          <p class="control">
+            <input class="input" type="text" placeholder="Amount of money">
+          </p>
+          <p class="control">
+            <button class="button">
+              <span class="icon is-small">
+                <i class="fas fa-bold"></i>
+              </span>
+            </button>
+          </p>
+        </div>
           </div>
         </div>
 
-        <div class="field">
-          <label>Display Duration</label>
-          <select class="ui search dropdown" v-model="duration">
-            <option value="1">1 sec</option>
-            <option value="2">2 sec</option>
-            <option value="3">3 sec</option>
-            <option value="4">4 sec</option>
-          </select>
-        </div>
-
-        <div class="grouped fields">
-          <label for="looptype">Loop Type</label>
-          <div class="field">
-            <div class="ui radio checkbox">
-              <input type="radio" name="looptype" checked="" tabindex="0" class="hidden">
-            <label>Ordered</label>
+        <div class="field is-horizontal">
+          <div class="field-label">
+            <label class="label">Loop Type</label>
           </div>
-          <div class="field">
-            <div class="ui radio checkbox">
-              <input type="radio" name="looptype" checked="" tabindex="0" class="hidden">
-            <label>Random</label>
+          <div class="field-body">
+            <div class="field">
+              <div class="control">
+                <div class="select">
+                  <select>
+                    <option>Select dropdown</option>
+                    <option>With options</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <button class="ui button primary">
-          Submit
-        </button>
+        <div class="field is-horizontal">
+          <div class="field-label">
+            <label class="label">Media Type</label>
+          </div>
+          <div class="field-body">
+            <div class="field">
+              <div class="control">
+                <div class="select">
+                  <select>
+                    <option>Select dropdown</option>
+                    <option>With options</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="field is-horizontal">
+          <div class="field-label">
+            <label class="label"></label>
+          </div>
+          <div class="field-body">
+            <div class="field">
+              <div class="control">
+                <button class="button is-link">Submit</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </form>
-
     </div>
   </body>
 </html>
