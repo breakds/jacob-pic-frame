@@ -165,11 +165,15 @@ CONFIG_PORTAL_WEBAPP = """
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
     <script>
       window.addEventListener("load", function(event) {
-        var app = new Vue({
+        const segments = window.location.href.split("/")
+        const host = `${segments[0]}//${segments[2]}`;
+        
+        const app = new Vue({
           el: "#app",
 
           data() {
             return ({
+              isSwitchBusy: false,
               isStopped: false,
             });
           },
@@ -177,6 +181,16 @@ CONFIG_PORTAL_WEBAPP = """
           methods: {
             handleSwitchOnOff() {
               this.isStopped = !this.isStopped;
+              this.isSwitchBusy = true;
+              fetch(`${host}/haha`, {
+                method: "POST",
+                body: JSON.stringify({"a": 1, "b": 2}),
+              }).then(response => {
+                return response.text();
+              }).then(text => {
+                this.isSwitchBusy = false;
+                console.log(text);
+              });
             }
           },
         });
@@ -197,7 +211,9 @@ CONFIG_PORTAL_WEBAPP = """
           <div class="field-body">
             <div class="field">
               <div class="control">
-                <button v-if="isStopped" 
+                <button v-if="isSwitchBusy" 
+                        class="button is-loading">Loading</button>
+                <button v-else-if="isStopped" 
                         v-on:click="handleSwitchOnOff"
                         class="button is-success">Start</button>
                 <button v-else 
@@ -298,6 +314,14 @@ class ConfigProtal(BaseHTTPRequestHandler):
         self.send_header('Content-type', 'text/html')
         self.end_headers()
         self.wfile.write(CONFIG_PORTAL_WEBAPP.encode('utf-8'))
+
+    def do_POST(self):
+        logger.info('{}, {}'.format(self.path, self.headers))
+        time.sleep(1.0)
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write('hehe'.encode('utf-8'))
 
 if __name__ == '__main__':
     logger.info('Jacob Picture Frame started.')
