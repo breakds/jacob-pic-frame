@@ -161,9 +161,26 @@ CONFIG_PORTAL_WEBAPP = """
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Jacob Picture Frame Config Portal</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.0/css/bulma.min.css">
-    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js" crossorigin="anonymous" SameSite="None"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
     <script>
+      window.addEventListener("load", function(event) {
+        var app = new Vue({
+          el: "#app",
+
+          data() {
+            return ({
+              isStopped: false,
+            });
+          },
+          
+          methods: {
+            handleSwitchOnOff() {
+              this.isStopped = !this.isStopped;
+            }
+          },
+        });
+      });
     </script>
     <style>
       body { max-width: 800px; margin: auto; padding: 20px; }
@@ -171,17 +188,21 @@ CONFIG_PORTAL_WEBAPP = """
   </head>
   <body>
     <div id="app" class="container is-fullhd">
-      <form>
+      <form v-on:submit.prevent>
         
         <div class="field is-horizontal">
-          <div class="field-label">
-            <label class="label">On/Off</label>
+          <div class="field-label is-normal">
+            <label class="label">Switch</label>
           </div>
           <div class="field-body">
             <div class="field">
               <div class="control">
-                <label class="radio"><input type="radio" name="question"> Play </label>
-                <label class="radio"><input type="radio" name="question"> Stop </label>
+                <button v-if="isStopped" 
+                        v-on:click="handleSwitchOnOff"
+                        class="button is-success">Start</button>
+                <button v-else 
+                        v-on:click="handleSwitchOnOff"
+                        class="button is-warning">Stop</button>
               </div>
             </div>
           </div>
@@ -196,7 +217,7 @@ CONFIG_PORTAL_WEBAPP = """
           <p class="control">
             <button class="button">
               <span class="icon is-small">
-                <i class="fas fa-bold"></i>
+                <i class="fas fa-minus"></i>
               </span>
             </button>
           </p>
@@ -206,7 +227,7 @@ CONFIG_PORTAL_WEBAPP = """
           <p class="control">
             <button class="button">
               <span class="icon is-small">
-                <i class="fas fa-bold"></i>
+                <i class="fas fa-plus"></i>
               </span>
             </button>
           </p>
