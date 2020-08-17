@@ -52,13 +52,13 @@ class FramePlayerConfig(object):
             'mediaFormat': self.media_format.name,
             'imageDuration': self.image_duration,
         }
-            
+
 
 
 class Utility(object):
     global_config_lock = threading.Lock()
     global_config = FramePlayerConfig()
-    
+
     @staticmethod
     def check_program_installed(program):
         return program if shutil.which(program) else None
@@ -159,21 +159,24 @@ class FramePlayer(threading.Thread):
                 if locked:
                     Utility.global_config_lock.release()
             if self.config.stopped:
-                time.sleep(0.5)
-                continue
-            
-            # TODO(breakds): Process config update here.
-            if len(self.album) == 0:
                 time.sleep(1.0)
                 continue
 
-            self.play_single_media(self.album[self.current_index])
+            print('ok')
+            time.sleep(1.0)
 
-            if self.config.loop_type is LoopType.ORDERED:
-                step = 1
-            else:
-                step = random.randrange(1, len(self.album))
-            self.current_index = (self.current_index + step) % len(self.album)
+            # TODO(breakds): Process config update here.
+            # if len(self.album) == 0:
+            #     time.sleep(1.0)
+            #     continue
+
+            # self.play_single_media(self.album[self.current_index])
+
+            # if self.config.loop_type is LoopType.ORDERED:
+            #     step = 1
+            # else:
+            #     step = random.randrange(1, len(self.album))
+            # self.current_index = (self.current_index + step) % len(self.album)
         background_proc.terminate()
 
 
@@ -188,32 +191,87 @@ CONFIG_PORTAL_WEBAPP = """
     <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js" crossorigin="anonymous" SameSite="None"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
     <script>
-      window.addEventListener("load", function(event) {
+      window.addEventListener("load", async envet => {
         const segments = window.location.href.split("/")
         const host = `${segments[0]}//${segments[2]}`;
-        
+
+        const response = await fetch(`${host}/getConfig`, {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+        const json = await response.json();
+        const initial = {
+          isSwitchBusy: false,
+          isSubmitBusy: false,
+          // TODO(breakds): Should make this a derived state. 
+          // The current implementation is buggy (but tolerable).
+          isModified: false,
+          isStopped: json.stopped,
+          mediaFormat: json.mediaFormat,
+          imageDuration: json.imageDuration,
+          loopType: json.loopType,
+        };
+
         const app = new Vue({
           el: "#app",
 
           data() {
-            return ({
-              isSwitchBusy: false,
-              isStopped: false,
-            });
+            return initial;
           },
-          
+
           methods: {
             handleSwitchOnOff() {
               this.isSwitchBusy = true;
               fetch(`${host}/switch`, {
                 method: "POST",
-                body: JSON.stringify({"a": 1, "b": 2}),
+                body: JSON.stringify({}),
               }).then(response => {
                 return response.json();
               }).then(json => {
                 this.isSwitchBusy = false;
                 this.isStopped = json.stopped;
               });
+            },
+
+            incDuration() {
+              this.isModified = true;
+              this.imageDuration = this.imageDuration + 1;
+            },
+
+            decDuration() {
+              if (this.imageDuration > 3) {
+                this.isModified = true;
+                this.imageDuration = this.imageDuration - 1;
+              }
+            },
+
+            setModified() {
+              this.isModified = true;
+            },
+
+            async handleSubmit() {
+              if (!this.isModified) {
+                return;
+              }
+              this.isSubmitBusy = true;
+
+              const response = await fetch(`${host}/setConfig`, {
+                method: "POST",
+                body: JSON.stringify({
+                  stopped: this.isStopped,
+                  mediaFormat: this.mediaFormat,
+                  imageDuration: this.imageDuration,
+                  loopType: this.loopType,
+                }),
+              });
+              const json = await response.json();
+
+              this.isSubmitBusy = false;
+              this.isModified = false;
+              this.isStopped = json.stopped;
+              this.mediaFormat = json.mediaFormat;
+              this.imageDuration = json.imageDuration;
+              this.loopType = json.loopType;
             }
           },
         });
@@ -226,7 +284,7 @@ CONFIG_PORTAL_WEBAPP = """
   <body>
     <div id="app" class="container is-fullhd">
       <form v-on:submit.prevent>
-        
+
         <div class="field is-horizontal">
           <div class="field-label is-normal">
             <label class="label">Switch</label>
@@ -234,12 +292,12 @@ CONFIG_PORTAL_WEBAPP = """
           <div class="field-body">
             <div class="field">
               <div class="control">
-                <button v-if="isSwitchBusy" 
+                <button v-if="isSwitchBusy"
                         class="button is-loading">Loading</button>
-                <button v-else-if="isStopped" 
+                <button v-else-if="isStopped"
                         v-on:click="handleSwitchOnOff"
                         class="button is-success">Start</button>
-                <button v-else 
+                <button v-else
                         v-on:click="handleSwitchOnOff"
                         class="button is-warning">Stop</button>
               </div>
@@ -254,17 +312,19 @@ CONFIG_PORTAL_WEBAPP = """
           <div class="field-body">
         <div class="field has-addons">
           <p class="control">
-            <button class="button">
+            <button class="button" v-on:click="decDuration">
               <span class="icon is-small">
                 <i class="fas fa-minus"></i>
               </span>
             </button>
           </p>
           <p class="control">
-            <input class="input" type="text" placeholder="Amount of money">
+            <input class="input" type="text" placeholder="Amount of money" 
+                   disabled
+                   v-bind:value="imageDuration + ' seconds'">
           </p>
           <p class="control">
-            <button class="button">
+            <button class="button" v-on:click="incDuration">
               <span class="icon is-small">
                 <i class="fas fa-plus"></i>
               </span>
@@ -282,9 +342,9 @@ CONFIG_PORTAL_WEBAPP = """
             <div class="field">
               <div class="control">
                 <div class="select">
-                  <select>
-                    <option>Select dropdown</option>
-                    <option>With options</option>
+                  <select v-model="loopType" v-on:change="setModified">
+                    <option>ORDERED</option>
+                    <option>RANDOM</option>
                   </select>
                 </div>
               </div>
@@ -300,9 +360,10 @@ CONFIG_PORTAL_WEBAPP = """
             <div class="field">
               <div class="control">
                 <div class="select">
-                  <select>
-                    <option>Select dropdown</option>
-                    <option>With options</option>
+                  <select v-model="mediaFormat" v-on:change="setModified">
+                    <option>IMG_ONLY</option>
+                    <option>MOV_ONLY</option>
+                    <option>BOTH</option>
                   </select>
                 </div>
               </div>
@@ -318,7 +379,9 @@ CONFIG_PORTAL_WEBAPP = """
           <div class="field-body">
             <div class="field">
               <div class="control">
-                <button class="button is-link">Submit</button>
+                <button v-if="isSubmitBusy" class="button is-link is-loading" disabled>Loading</button>
+                <button v-else-if="!isModified" class="button is-link" disabled>Submit</button>
+                <button v-else class="button is-link" v-on:click="handleSubmit">Submit</button>
               </div>
             </div>
           </div>
@@ -339,20 +402,26 @@ class ConfigPortal(BaseHTTPRequestHandler):
         self.wfile.write(CONFIG_PORTAL_WEBAPP.encode('utf-8'))
 
     def do_POST(self):
-        if self.path == '/switch':
-            updated_config = None
-            with Utility.global_config_lock:
+        if self.path not in ['/switch', '/getConfig', '/setConfig']:
+            self.send_response(500)
+            self.send_header('Content-type', 'html/text')
+            self.end_headers()
+            self.wfile.write('Unrecognized path {}'.format(self.path).encode('utf-8'))
+            return
+
+        updated_config = {}
+        with Utility.global_config_lock:
+            if self.path == '/switch':
                 Utility.global_config.stopped = not Utility.global_config.stopped
-                updated_config = Utility.global_config.as_dict()
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps(updated_config).encode('utf-8'))
-        else:
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html')
-            self.end_headers()
-            self.wfile.write('Unrecognized Path {}'.format(self.path).encode('utf-8'))
+            elif self.path == '/setConfig':
+                print('Set Config!')
+            updated_config = Utility.global_config.as_dict()
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        self.wfile.write(json.dumps(updated_config).encode('utf-8'))
+
 
 if __name__ == '__main__':
     logger.info('Jacob Picture Frame started.')
