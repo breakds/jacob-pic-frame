@@ -53,6 +53,11 @@ class FramePlayerConfig(object):
             'imageDuration': self.image_duration,
         }
 
+    def load_from_dict(self, input_config):
+        self.stopped = input_config['stopped']
+        self.loop_type = LoopType[input_config['loopType']]
+        self.media_format = MediaFormat[input_config['mediaFormat']]
+        self.image_duration = float(input_config['imageDuration'])
 
 
 class Utility(object):
@@ -162,21 +167,17 @@ class FramePlayer(threading.Thread):
                 time.sleep(1.0)
                 continue
 
-            print('ok')
-            time.sleep(1.0)
+            if len(self.album) == 0:
+                time.sleep(1.0)
+                continue
 
-            # TODO(breakds): Process config update here.
-            # if len(self.album) == 0:
-            #     time.sleep(1.0)
-            #     continue
+            self.play_single_media(self.album[self.current_index])
 
-            # self.play_single_media(self.album[self.current_index])
-
-            # if self.config.loop_type is LoopType.ORDERED:
-            #     step = 1
-            # else:
-            #     step = random.randrange(1, len(self.album))
-            # self.current_index = (self.current_index + step) % len(self.album)
+            if self.config.loop_type is LoopType.ORDERED:
+                step = 1
+            else:
+                step = random.randrange(1, len(self.album))
+            self.current_index = (self.current_index + step) % len(self.album)
         background_proc.terminate()
 
 
@@ -414,7 +415,9 @@ class ConfigPortal(BaseHTTPRequestHandler):
             if self.path == '/switch':
                 Utility.global_config.stopped = not Utility.global_config.stopped
             elif self.path == '/setConfig':
-                print('Set Config!')
+                payload = self.rfile.read(int(self.headers['Content-Length']))
+                input_config = json.loads(payload)
+                Utility.global_config.load_from_dict(input_config)
             updated_config = Utility.global_config.as_dict()
 
         self.send_response(200)
